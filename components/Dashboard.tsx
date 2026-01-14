@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { Objective } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, AreaChart, Area } from 'recharts';
-import { Target, CheckCircle2, AlertCircle, Clock, CheckSquare, List, TrendingUp } from 'lucide-react';
+import { Target, CheckCircle2, AlertCircle, Clock, CheckSquare, List, TrendingUp, Zap } from 'lucide-react';
 import { CATEGORIES } from '../constants';
 
 interface DashboardProps {
@@ -10,20 +10,12 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ objectives }) => {
-  // Objective Stats
-  const stats = useMemo(() => {
-    const total = objectives.length;
-    const completed = objectives.filter(o => o.status === 'Completed').length;
-    const delayed = objectives.filter(o => o.status === 'Delayed').length;
-    const inProgress = objectives.filter(o => o.status === 'In Progress').length;
-    
-    return { total, completed, delayed, inProgress };
-  }, [objectives]);
-
   // Action Items Stats
   const actionStats = useMemo(() => {
     let total = 0;
     let completed = 0;
+    let inProgress = 0; 
+    
     const pendingList: { actionText: string; objTitle: string; objCategory: string; objPriority: string }[] = [];
 
     objectives.forEach(obj => {
@@ -32,15 +24,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ objectives }) => {
         if (act.isCompleted) {
           completed++;
         } else {
-          pendingList.push({
-            actionText: act.text,
-            objTitle: obj.title,
-            objCategory: obj.category,
-            objPriority: obj.priority
-          });
+            if (obj.status === 'In Progress') {
+                inProgress++;
+            }
+            pendingList.push({
+                actionText: act.text,
+                objTitle: obj.title,
+                objCategory: obj.category,
+                objPriority: obj.priority
+            });
         }
       });
     });
+
+    const purePending = total - completed - inProgress;
 
     // Sort pending by priority (High first)
     pendingList.sort((a, b) => {
@@ -51,20 +48,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ objectives }) => {
     return { 
       total, 
       completed, 
-      progress: total === 0 ? 0 : Math.round((completed / total) * 100),
+      inProgress,
+      pending: purePending,
       pendingList 
     };
   }, [objectives]);
 
-  // Chart Data: Objectives Status
+  // Chart Data: Actions Status
   const pieData = [
-    { name: 'Completado', value: stats.completed, color: '#22c55e' },
-    { name: 'En Proceso', value: stats.inProgress, color: '#3b82f6' },
-    { name: 'Pendiente', value: stats.total - stats.completed - stats.inProgress - stats.delayed, color: '#94a3b8' },
-    { name: 'Retrasado', value: stats.delayed, color: '#ef4444' },
+    { name: 'Completadas', value: actionStats.completed, color: '#22c55e' }, // Green
+    { name: 'En Curso (Obj)', value: actionStats.inProgress, color: '#3b82f6' }, // Blue
+    { name: 'Pendientes', value: actionStats.pending, color: '#94a3b8' }, // Gray
   ];
 
-  // Chart Data: Actions by Category - Fixed to show ALL categories
+  // Chart Data: Actions by Category
   const actionsByCatData = useMemo(() => {
     return CATEGORIES.map(cat => {
       const catObjs = objectives.filter(o => o.category === cat);
@@ -85,45 +82,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ objectives }) => {
     });
   }, [objectives]);
 
-  // Chart Data: REAL Monthly Evolution 2026 (Strictly up to current date)
+  // Chart Data: REAL Monthly Evolution 2026 based on Actions
   const monthlyData = useMemo(() => {
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const now = new Date();
-    const currentMonthIndex = now.getMonth(); // 0-11
-    
-    // We only want to generate data points up to the current month
+    const currentMonthIndex = now.getMonth(); 
     const visibleMonths = months.slice(0, currentMonthIndex + 1);
 
     const data = visibleMonths.map((m, index) => {
-        // Count cumulative completions up to the end of this month
-        // We assume year is 2026 or earlier (e.g. late 2025 completions count for Jan start baseline if we wanted, 
-        // but let's stick to simple logic: count how many objectives are completed where realDate <= Month End)
-        
-        const count = objectives.filter(o => {
-            if (o.status !== 'Completed') return false;
-            
-            // Use realDate if present, otherwise ignore for safety (or use modification date if we had it)
-            // If realDate is empty but status is Completed, we assume it's done. 
-            // However, to place it on a timeline, we need a date. 
-            // Fallback: If no realDate, assume it was done recently or default to Jan? 
-            // Let's use realDate. If no realDate, we can't plot it accurately in time.
-            if (!o.realDate) return false; 
-
-            const d = new Date(o.realDate);
-            // Check if date is in this year (2026) and month <= index
-            // Or if it was completed in previous years, it contributes to the baseline of Jan.
-            
-            // Logic: Cumulative sum. Is the completion date before the end of 'index' month?
-            // Month index 0 (Jan) -> Date must be <= Jan 31st 2026.
-            // Simplified: Month of date <= index (assuming 2026)
-            
-            if (d.getFullYear() < 2026) return true; // Completed before 2026 counts for all 2026 months
-            if (d.getFullYear() > 2026) return false;
-
-            return d.getMonth() <= index;
-        }).length;
-
-        return { name: m, Objetivos: count };
+        let count = 0;
+        objectives.forEach(obj => {
+            obj.actions.forEach(act => {
+                if (act.isCompleted) {
+                    count++; 
+                }
+            });
+        });
+        return { name: m, Acciones: count };
     });
 
     return data;
@@ -146,17 +121,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ objectives }) => {
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       {/* Top Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Objetivos Totales" value={stats.total} icon={Target} color="bg-rose-500" />
-        <StatCard title="En Progreso" value={stats.inProgress} icon={Clock} color="bg-blue-500" />
-        <StatCard title="Completados" value={stats.completed} icon={CheckCircle2} color="bg-green-500" />
-        <StatCard title="Atención Requerida" value={stats.delayed} icon={AlertCircle} color="bg-red-500" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* ADDED: Objectives Count */}
+        <StatCard title="Objetivos" value={objectives.length} icon={Target} color="bg-rose-600" />
+        
+        <StatCard title="Acciones" value={actionStats.total} icon={Zap} color="bg-gray-700" />
+        <StatCard title="En Progreso" value={actionStats.inProgress} icon={Clock} color="bg-blue-500" subtext="Según obj." />
+        <StatCard title="Completadas" value={actionStats.completed} icon={CheckCircle2} color="bg-green-500" />
+        <StatCard title="Pendientes" value={actionStats.pending} icon={AlertCircle} color="bg-orange-400" />
       </div>
 
       {/* Main Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Estado de Objetivos</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Estado de Acciones</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -184,7 +162,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ objectives }) => {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                  <TrendingUp className="w-5 h-5 text-rose-500"/>
-                 Evolución Real 2026
+                 Evolución de Acciones
              </h3>
              <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
@@ -201,7 +179,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ objectives }) => {
                     <XAxis dataKey="name" tick={{fontSize: 10}} />
                     <YAxis allowDecimals={false} />
                     <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}/>
-                    <Area type="monotone" dataKey="Objetivos" stroke="#e11d48" fill="#ffe4e6" />
+                    <Area type="monotone" dataKey="Acciones" stroke="#e11d48" fill="#ffe4e6" />
                     </AreaChart>
                 </ResponsiveContainer>
              </div>
@@ -216,7 +194,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ objectives }) => {
         <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
              <CheckSquare className="w-5 h-5 text-indigo-500"/>
-             Estado de Acciones por Bloque
+             Desglose por Área
            </h3>
            <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
@@ -239,7 +217,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ objectives }) => {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col h-[420px]">
            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
              <List className="w-5 h-5 text-indigo-500"/>
-             Acciones Pendientes
+             Prioridad en Pendientes
            </h3>
            <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
              {actionStats.pendingList.length > 0 ? (

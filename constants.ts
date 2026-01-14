@@ -1,7 +1,98 @@
 
-import { Objective } from './types';
+import { Objective, Meeting } from './types';
 
 const INITIAL_DATE = new Date().toISOString().split('T')[0];
+
+const JD_DEFAULT_AGENDA = "- Aprobación acta reunión JD mes anterior\n- Cierre económico mes anterior\n- Actualización estado Instalaciones/Mantenimiento\n- Altas/bajas RRHH";
+
+// Helper to generate meetings based on user rules
+const generateMeetings = (): Meeting[] => {
+  const meetings: Meeting[] = [];
+  
+  // Specific initial dates requested
+  // Jan
+  meetings.push({
+    id: 'm-jan-sj',
+    date: '2026-01-22',
+    startTime: '19:00',
+    endTime: '20:30',
+    title: 'Reunión SoloJunta (SJ)',
+    type: 'SJ',
+    agenda: 'Definición estrategia anual.'
+  });
+  meetings.push({
+    id: 'm-jan-jd',
+    date: '2026-01-29',
+    startTime: '19:00',
+    endTime: '21:00',
+    title: 'Junta Directiva (JD)',
+    type: 'JD',
+    agenda: JD_DEFAULT_AGENDA
+  });
+
+  // Feb
+  meetings.push({
+    id: 'm-feb-sj',
+    date: '2026-02-12',
+    startTime: '19:00',
+    endTime: '20:30',
+    title: 'Reunión SoloJunta (SJ)',
+    type: 'SJ',
+    agenda: 'Seguimiento objetivos Q1.'
+  });
+  meetings.push({
+    id: 'm-feb-jd',
+    date: '2026-02-26',
+    startTime: '19:00',
+    endTime: '21:00',
+    title: 'Junta Directiva (JD)',
+    type: 'JD',
+    agenda: JD_DEFAULT_AGENDA
+  });
+
+  // Generate March - Dec
+  // Pattern: SJ on 2nd Thursday, JD on 4th (or last) Thursday roughly.
+  // Logic: Iterate months 2 (March) to 11 (Dec).
+  for (let month = 2; month < 12; month++) { 
+    const d = new Date(2026, month, 1);
+    
+    // Find first Thursday
+    let day = d.getDay(); // 0-6
+    let diff = (4 - day + 7) % 7; // Days to add to get to Thursday
+    let firstThursday = 1 + diff;
+    
+    let secondThursday = firstThursday + 7;
+    let fourthThursday = firstThursday + 21;
+
+    // SJ Date (2nd Thursday)
+    const dateSjStr = `2026-${String(month + 1).padStart(2, '0')}-${String(secondThursday).padStart(2, '0')}`;
+    meetings.push({
+      id: `m-${month}-sj`,
+      date: dateSjStr,
+      startTime: '19:00',
+      endTime: '20:30',
+      title: 'Reunión SoloJunta (SJ)',
+      type: 'SJ',
+      agenda: ''
+    });
+
+    // JD Date (4th Thursday)
+    const dateJdStr = `2026-${String(month + 1).padStart(2, '0')}-${String(fourthThursday).padStart(2, '0')}`;
+    meetings.push({
+      id: `m-${month}-jd`,
+      date: dateJdStr,
+      startTime: '19:00',
+      endTime: '21:00',
+      title: 'Junta Directiva (JD)',
+      type: 'JD',
+      agenda: JD_DEFAULT_AGENDA
+    });
+  }
+
+  return meetings;
+};
+
+export const INITIAL_MEETINGS: Meeting[] = generateMeetings();
 
 export const INITIAL_OBJECTIVES: Objective[] = [
   // BLOQUE FUNCIONAMIENTO JD
@@ -16,16 +107,13 @@ export const INITIAL_OBJECTIVES: Objective[] = [
     realDate: '',
     owner: 'Secretario',
     progress: 0,
-    imageUrl: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&q=80&w=400',
+    iconKey: 'gavel',
     actions: [
-      { id: 'a1', text: 'Definir agenda estándar para reuniones', isCompleted: false },
-      { id: 'a2', text: 'Agendar sesiones trimestrales exclusivas de estrategia', isCompleted: false }
+      { id: 'a1', text: 'Definir agenda estándar para reuniones', isCompleted: false, deadline: '2026-01-15', comments: [], difficulty: 2, impact: 8, owner: 'Secretario' },
+      { id: 'a2', text: 'Agendar sesiones trimestrales exclusivas de estrategia', isCompleted: false, deadline: '2026-02-01', comments: [], difficulty: 4, impact: 9, owner: 'Presidente' }
     ],
-    comments: [],
-    ease: 8,
     impact: 9,
-    cost: 1,
-    risk: 2
+    effort: 3
   },
   {
     id: 2,
@@ -36,18 +124,15 @@ export const INITIAL_OBJECTIVES: Objective[] = [
     priority: 'Medium',
     deadline: '2026-02-15',
     realDate: '',
-    owner: 'Presidente',
+    owner: 'Presidente', 
     progress: 50,
-    imageUrl: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&q=80&w=400',
+    iconKey: 'zap',
     actions: [
-      { id: 'a3', text: 'Crear grupo de WhatsApp exclusivo para votaciones', isCompleted: true },
-      { id: 'a4', text: 'Redactar normativa de validez de voto digital', isCompleted: false }
+      { id: 'a3', text: 'Crear grupo de WhatsApp exclusivo para votaciones', isCompleted: true, deadline: '2026-01-10', comments: [], difficulty: 1, impact: 7, owner: 'Presidente' },
+      { id: 'a4', text: 'Redactar normativa de validez de voto digital', isCompleted: false, deadline: '2026-01-30', comments: [], difficulty: 3, impact: 8, owner: 'Secretario' }
     ],
-    comments: [],
-    ease: 9,
     impact: 7,
-    cost: 1,
-    risk: 3
+    effort: 2
   },
   {
     id: 3,
@@ -60,15 +145,12 @@ export const INITIAL_OBJECTIVES: Objective[] = [
     realDate: '',
     owner: 'JD',
     progress: 0,
-    imageUrl: 'https://images.unsplash.com/photo-1507537297725-24a1c434e3db?auto=format&fit=crop&q=80&w=400',
+    iconKey: 'hourglass',
     actions: [],
-    comments: [],
-    ease: 5,
     impact: 6,
-    cost: 1,
-    risk: 5
+    effort: 5
   },
-  // BLOQUE AREA SOCIAL (Antes Socios)
+  // BLOQUE AREA SOCIAL
   {
     id: 4,
     category: 'Área Social',
@@ -78,15 +160,12 @@ export const INITIAL_OBJECTIVES: Objective[] = [
     priority: 'Medium',
     deadline: '2026-04-01',
     realDate: '',
-    owner: 'Comisión Social',
+    owner: 'Área Social',
     progress: 0,
-    imageUrl: 'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&q=80&w=400',
+    iconKey: 'users',
     actions: [],
-    comments: [],
-    ease: 4,
     impact: 8,
-    cost: 7,
-    risk: 4
+    effort: 7
   },
   {
     id: 5,
@@ -99,15 +178,12 @@ export const INITIAL_OBJECTIVES: Objective[] = [
     realDate: '',
     owner: 'Gerencia',
     progress: 20,
-    imageUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&q=80&w=400',
+    iconKey: 'star',
     actions: [
-      { id: 'a5', text: 'Diseñar encuesta de satisfacción anual', isCompleted: true }
+      { id: 'a5', text: 'Diseñar encuesta de satisfacción anual', isCompleted: true, deadline: '2026-05-01', comments: [], difficulty: 5, impact: 9, owner: 'Área Social' }
     ],
-    comments: [],
-    ease: 6,
     impact: 9,
-    cost: 3,
-    risk: 2
+    effort: 4
   },
   {
     id: 6,
@@ -120,13 +196,10 @@ export const INITIAL_OBJECTIVES: Objective[] = [
     realDate: '',
     owner: 'JD',
     progress: 0,
-    imageUrl: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&q=80&w=400',
+    iconKey: 'users-2',
     actions: [],
-    comments: [],
-    ease: 7,
     impact: 8,
-    cost: 2,
-    risk: 6
+    effort: 6
   },
   {
     id: 7,
@@ -137,17 +210,14 @@ export const INITIAL_OBJECTIVES: Objective[] = [
     priority: 'Medium',
     deadline: '2026-09-01',
     realDate: '',
-    owner: 'Marketing',
+    owner: 'Área Social', 
     progress: 0,
-    imageUrl: 'https://images.unsplash.com/photo-1557200134-90327ee9fafa?auto=format&fit=crop&q=80&w=400',
+    iconKey: 'megaphone',
     actions: [],
-    comments: [],
-    ease: 5,
     impact: 7,
-    cost: 5,
-    risk: 1
+    effort: 8
   },
-  // BLOQUE AREA DEPORTIVA (Antes Deportiva)
+  // BLOQUE AREA DEPORTIVA
   {
     id: 8,
     category: 'Área Deportiva',
@@ -157,15 +227,12 @@ export const INITIAL_OBJECTIVES: Objective[] = [
     priority: 'High',
     deadline: '2026-09-01',
     realDate: '',
-    owner: 'Director Deportivo',
+    owner: 'Área Deportiva',
     progress: 0,
-    imageUrl: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&q=80&w=400',
+    iconKey: 'trophy',
     actions: [],
-    comments: [],
-    ease: 3,
     impact: 10,
-    cost: 6,
-    risk: 5
+    effort: 8
   },
   {
     id: 9,
@@ -178,15 +245,12 @@ export const INITIAL_OBJECTIVES: Objective[] = [
     realDate: '',
     owner: 'Gerencia',
     progress: 0,
-    imageUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=400',
+    iconKey: 'dumbbell',
     actions: [],
-    comments: [],
-    ease: 6,
     impact: 6,
-    cost: 8,
-    risk: 2
+    effort: 5
   },
-  // BLOQUE INSTALACIONES (Ahora Mantenimiento)
+  // BLOQUE MANTENIMIENTO (Gerencia)
   {
     id: 10,
     category: 'Mantenimiento',
@@ -196,17 +260,14 @@ export const INITIAL_OBJECTIVES: Objective[] = [
     priority: 'Medium',
     deadline: '2026-12-31',
     realDate: '',
-    owner: 'Mantenimiento',
+    owner: 'Gerencia', 
     progress: 0,
-    imageUrl: 'https://images.unsplash.com/photo-1581094794329-cd8119604f8b?auto=format&fit=crop&q=80&w=400',
+    iconKey: 'wrench',
     actions: [],
-    comments: [],
-    ease: 4,
     impact: 8,
-    cost: 9,
-    risk: 3
+    effort: 9
   },
-  // BLOQUE AREA RRHH (Antes RRHH)
+  // BLOQUE AREA RRHH
   {
     id: 11,
     category: 'Área RRHH',
@@ -216,15 +277,12 @@ export const INITIAL_OBJECTIVES: Objective[] = [
     priority: 'High',
     deadline: '2026-03-30',
     realDate: '',
-    owner: 'RRHH',
+    owner: 'Área RRHH',
     progress: 30,
-    imageUrl: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&q=80&w=400',
+    iconKey: 'network',
     actions: [],
-    comments: [],
-    ease: 5,
     impact: 8,
-    cost: 2,
-    risk: 4
+    effort: 4
   },
   {
     id: 12,
@@ -235,17 +293,14 @@ export const INITIAL_OBJECTIVES: Objective[] = [
     priority: 'High',
     deadline: '2026-01-30',
     realDate: '',
-    owner: 'Tesorero',
+    owner: 'Área Financiera', 
     progress: 0,
-    imageUrl: 'https://images.unsplash.com/photo-1554224155-98406852d009?auto=format&fit=crop&q=80&w=400',
+    iconKey: 'banknote',
     actions: [],
-    comments: [],
-    ease: 2,
     impact: 9,
-    cost: 6,
-    risk: 7
+    effort: 7
   },
-  // BLOQUE AREA FINANCIERA (Antes Financiero)
+  // BLOQUE AREA FINANCIERA
   {
     id: 13,
     category: 'Área Financiera',
@@ -255,15 +310,12 @@ export const INITIAL_OBJECTIVES: Objective[] = [
     priority: 'High',
     deadline: '2025-12-15',
     realDate: '2025-12-20',
-    owner: 'Tesorero',
+    owner: 'Área Financiera',
     progress: 100,
-    imageUrl: 'https://images.unsplash.com/photo-1554224154-260327c00c40?auto=format&fit=crop&q=80&w=400',
+    iconKey: 'wallet',
     actions: [],
-    comments: [{id: 'c1', author: 'Admin', text: 'Presupuesto aprobado en última reunión', timestamp: '2025-12-20'}],
-    ease: 6,
     impact: 10,
-    cost: 2,
-    risk: 8
+    effort: 6
   },
   {
     id: 14,
@@ -276,13 +328,10 @@ export const INITIAL_OBJECTIVES: Objective[] = [
     realDate: '',
     owner: 'Gerencia',
     progress: 0,
-    imageUrl: 'https://images.unsplash.com/photo-1543286386-2e659306cd6c?auto=format&fit=crop&q=80&w=400',
+    iconKey: 'bar-chart-3',
     actions: [],
-    comments: [],
-    ease: 7,
     impact: 4,
-    cost: 2,
-    risk: 1
+    effort: 3
   },
   {
     id: 15,
@@ -293,15 +342,12 @@ export const INITIAL_OBJECTIVES: Objective[] = [
     priority: 'Medium',
     deadline: '2026-02-01',
     realDate: '',
-    owner: 'IT / Admin',
+    owner: 'Gerencia', 
     progress: 10,
-    imageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=400',
+    iconKey: 'laptop',
     actions: [],
-    comments: [],
-    ease: 5,
     impact: 7,
-    cost: 5,
-    risk: 3
+    effort: 6
   }
 ];
 
